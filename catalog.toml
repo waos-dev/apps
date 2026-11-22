@@ -1,0 +1,19 @@
+# The apps this catalog lists, one [[app]] each.
+#
+#   id         The app's id, as its package's manifest names it.
+#   source     The package source that releases it: github.com/<owner>/<repo>, read from that
+#              repository's latest release, or the https:// URL of an index.json.
+#   publisher  The publisher's key, 64 hex digits, as `waos package verify` prints it. A package
+#              signed with any other key is not collected, so a key changes only by a reviewed
+#              change to this file.
+
+# The WaOS project's key, fingerprint 9A39 A154 96F4 221C.
+[[app]]
+id = "dev.waos.inspector"
+source = "github.com/waos-dev/waos"
+publisher = "f20f6e3ff4ac0376119435c613f8baaee77b3e50d248f04416afcad08f7e7816"
+
+[[app]]
+id = "dev.waos.zed"
+source = "github.com/waos-dev/zed"
+publisher = "f20f6e3ff4ac0376119435c613f8baaee77b3e50d248f04416afcad08f7e7816"
