@@ -17,3 +17,8 @@ publisher = "f20f6e3ff4ac0376119435c613f8baaee77b3e50d248f04416afcad08f7e7816"
 id = "dev.waos.zed"
 source = "github.com/waos-dev/zed"
 publisher = "f20f6e3ff4ac0376119435c613f8baaee77b3e50d248f04416afcad08f7e7816"
+
+[[app]]
+id = "dev.waos.hummingbird"
+source = "github.com/waos-dev/hummingbird"
+publisher = "f20f6e3ff4ac0376119435c613f8baaee77b3e50d248f04416afcad08f7e7816"
