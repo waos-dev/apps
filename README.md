@@ -1,8 +1,7 @@
 # WaOS apps
 
-The official catalog of apps for [WaOS](https://github.com/waos-dev/waos), served at
-`https://list.waos.app/index.json`. WaOS comes with it among its package sources; it can be
-removed like any other.
+The official catalog of apps for [WaOS](https://github.com/waos-dev/waos), the source
+`list.waos.app`. WaOS comes with it among its package sources; it can be removed like any other.
 
 The catalog builds nothing. Each app is packaged and released by its own repository, signed with
 its publisher's key. This repository only says which apps to list and where they come from, and an
@@ -21,7 +20,8 @@ your bucket.
 
 ## How it works
 
-A WaOS package source is an `index.json`:
+A WaOS package source is a folder that holds an `index.json`, with the packages it lists beside
+it:
 
 ```json
 {
@@ -37,9 +37,11 @@ A WaOS package source is an `index.json`:
 }
 ```
 
-`package` is found relative to the index's URL. A source named `github.com/<owner>/<repo>` is read
-from that repository's latest release, at
-`https://github.com/<owner>/<repo>/releases/latest/download/index.json`.
+`package` is found relative to the index's URL. A website is a source by its address alone: WaOS
+reads `list.waos.app` at `https://list.waos.app/.well-known/waos/index.json`, the folder where a
+site says what it offers one kind of client (RFC 8615), so the catalog keeps everything it serves
+there. A source named `github.com/<owner>/<repo>` is read from that repository's latest release,
+at `https://github.com/<owner>/<repo>/releases/latest/download/index.json`.
 
 On each run, for each app in `catalog.toml`, `collect.py`:
 
@@ -49,7 +51,8 @@ On each run, for each app in `catalog.toml`, `collect.py`:
 3. runs `waos package verify <file> --publisher <key>`, which opens the package as WaOS does and
    refuses it unless it is signed with the key `catalog.toml` names, and checks the package is the
    id and version the source said;
-4. copies it to R2 at `<id>/<version>/<file>`. A package there is never changed.
+4. copies it to R2 at `.well-known/waos/<id>/<version>/<file>`. A package there is never
+   changed.
 
 Then it writes the catalog's `index.json`, listing each app's latest collected version, last of
 all. An app whose source has no release yet, or does not list it, is skipped. A package that fails
@@ -99,7 +102,7 @@ Once merged, the next run collects your latest release, and every later one as y
 5. List your apps in `catalog.toml`, and enable Actions on the copy (a fork's scheduled workflows
    start off).
 
-Your catalog is then `https://<your domain>/index.json`, and WaOS can add it as a source.
+Your catalog is then the source `<your domain>`: type that into WaOS to add it.
 
 To try it without R2, collect into a folder:
 
@@ -107,8 +110,10 @@ To try it without R2, collect into a folder:
 python3 collect.py --out catalog --waos <path to waos>
 ```
 
-This writes the index and the packages to `catalog/`, reading the current index from there too,
-so a second run says "Nothing new." Python 3.11 or later; `waos` from
+This writes the index and the packages to `catalog/.well-known/waos/`, as the bucket holds them,
+reading the current index from there too, so a second run says "Nothing new." Serve `catalog/`
+on this machine (`python3 -m http.server -d catalog`) and `http://localhost:8000` is a source WaOS
+can add. Python 3.11 or later; `waos` from
 `cargo install --git https://github.com/waos-dev/waos waos-cli --locked`.
 
 ## Trust

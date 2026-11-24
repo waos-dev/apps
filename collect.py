@@ -7,9 +7,12 @@ catalog lists is downloaded, checked against the SHA-256 its source lists, verif
 <id>/<version>/<file>, never to be changed. The catalog's index.json, listing each app's latest
 collected version, is written last.
 
+All of it is kept in the bucket's .well-known/waos/ folder, where WaOS reads a website that is a
+source: the catalog is added to WaOS by its address alone, list.waos.app.
+
     collect.py --check        say whether anything is new (for the workflow), change nothing
     collect.py                collect what is new into R2
-    collect.py --out DIR      a dry run: collect into DIR instead of R2
+    collect.py --out DIR      a dry run: collect into DIR, as the bucket would hold it
 
 A source that cannot be read, or does not list its app, is reported and skipped. A package that
 fails a check is refused: the app keeps its current listing, and the run fails once the others are
@@ -36,6 +39,8 @@ from urllib.request import Request, urlopen
 
 BUCKET = "waos-list"
 SERVED_AT = "https://list.waos.app/"
+# Where a website keeps what it lists for WaOS (RFC 8615's well-known folder), after its address.
+SITE_FOLDER = ".well-known/waos/"
 INDEX = "index.json"
 INDEX_CACHE = "public, max-age=300"
 PACKAGE_CACHE = "public, max-age=31536000, immutable"
@@ -84,7 +89,7 @@ class Offered:
 
 def main():
     arguments = parse_arguments()
-    store = Folder(arguments.out) if arguments.out else R2(BUCKET, SERVED_AT)
+    store = Folder(arguments.out / SITE_FOLDER) if arguments.out else R2(BUCKET, SERVED_AT, SITE_FOLDER)
     apps = read_catalog(arguments.catalog)
     listed = {program["id"]: program for program in read_index(store)}
 
@@ -195,13 +200,17 @@ def latest_offered(app):
 
 
 def index_url_of(source):
-    """Where a source's index is read, as WaOS reads it."""
+    """Where a source's index is read, as WaOS reads it: in a GitHub repository's latest release,
+    in a website's well-known folder, or in the folder an address with a path names."""
     if source.startswith("github.com/"):
         return f"https://{source}/releases/latest/download/{INDEX}"
-    url = urlparse(source)
-    if url.scheme == "https" or (url.scheme == "http" and url.hostname in ("localhost", "127.0.0.1")):
-        return source
-    raise ValueError(f"{source} is neither github.com/<owner>/<repo> nor an https:// URL")
+    url = urlparse(source if "://" in source else f"https://{source}")
+    on_this_machine = url.scheme == "http" and url.hostname in ("localhost", "127.0.0.1")
+    if not url.hostname or not (url.scheme == "https" or on_this_machine):
+        raise ValueError(f"{source} is neither github.com/<owner>/<repo> nor a website's address")
+    path = url.path.strip("/")
+    folder = f"{path}/" if path else SITE_FOLDER
+    return f"{url.scheme}://{url.netloc}/{folder}{INDEX}"
 
 
 def precedence(version):
@@ -307,17 +316,18 @@ def fetch(url):
 
 
 class R2:
-    """The bucket, read where it is served and written with wrangler."""
+    """A folder of the bucket, read where the bucket is served and written with wrangler."""
 
-    def __init__(self, bucket, served_at):
-        self.bucket, self.served_at = bucket, served_at
+    def __init__(self, bucket, served_at, folder):
+        self.bucket, self.served_at, self.folder = bucket, served_at, folder
 
     def read(self, key):
-        return fetch(urljoin(self.served_at, key))
+        return fetch(urljoin(self.served_at, self.folder + key))
 
     def put(self, key, file, content_type, cache_control):
         subprocess.run(
-            ["npx", "--yes", "wrangler@4", "r2", "object", "put", f"{self.bucket}/{key}",
+            ["npx", "--yes", "wrangler@4", "r2", "object", "put",
+             f"{self.bucket}/{self.folder}{key}",
              "--file", str(file), "--content-type", content_type,
              "--cache-control", cache_control, "--remote"],
             check=True,
